@@ -1,0 +1,7 @@
+[package]
+name = "mood_motion_server"
+version = "0.1.0"
+authors = ["Tom Gowan <s3549186@student.rmit.edu.au>"]
+
+[dependencies]
+glium = "0.17.1"
