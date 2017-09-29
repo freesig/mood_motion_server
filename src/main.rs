@@ -4,6 +4,15 @@ extern crate glium;
 use std::net::UdpSocket;
 use std::ops::{Sub, AddAssign, DivAssign};
 use glium::{glutin, Surface};
+use std::sync::mpsc;
+use std::sync::mpsc::{Sender, Receiver};
+
+mod arduino;
+
+use arduino::Port;
+
+const TOTAL: i32 = 50;
+const MIN_ACCEL: f32 = 0.5;
 
 #[derive(Debug)]
 struct Vec3{
@@ -73,6 +82,20 @@ fn main() {
     // read from the socket
     let mut buf = [0; 100];
     let mut history: Vec<Vec3> = Vec::new();
+
+    let mut port = arduino::open();
+
+    let (sender_jerk, recv) = mpsc::channel();
+
+    std::thread::spawn(move ||{
+        match port {
+            Port::Open(mut p) => arduino::interact(&mut p, recv).unwrap(),
+            Port::Dummy =>(),
+        };
+    });
+
+    let mut count = 0;
+
     while !closed {
         let (amt, src) = socket.recv_from(&mut buf).unwrap();
 
@@ -83,25 +106,41 @@ fn main() {
         let z: f32 = peices.next().unwrap().parse().unwrap();
         let accel = Vec3{x, y, z};
 
-        history.push(accel);
-        if history.len() >= 10 {
-            history.remove(0);
+        // A minimum acceleration
+        if accel.x > MIN_ACCEL || accel.y > MIN_ACCEL || accel.z > MIN_ACCEL {
+
+
+            history.push(accel);
+            if history.len() >= TOTAL as usize{
+                history.remove(0);
+            }
+
+            let mut dj_total = Vec3{ x: 0.0, y: 0.0, z: 0.0 };
+            for i in 0..(history.len() - 1) {
+                dj_total += &history[i+1] - &history[i];
+
+            }
+            dj_total.scale(1.0 / history.len() as f32);
+            //println!("dj_total: {:?}", dj_total);
+
+            dj_total.x = max( min( dj_total.x.abs(), 1.0 ), 0.0);
+            dj_total.y = max( min( dj_total.y.abs(), 1.0 ), 0.0);
+            dj_total.z = max( min( dj_total.z.abs(), 1.0 ), 0.0);
+            let mut target = display.draw();
+            target.clear_color(dj_total.x.abs(), dj_total.y.abs(), dj_total.z.abs(), 1.0);
+            target.finish().unwrap();
+
+            if count >= 100 {
+                let mut amount = dj_total.x.abs() + dj_total.y.abs() + dj_total.z.abs();
+                amount /= 3.0;
+
+                let amount = (255.0 * amount) as i16;
+                let amount = format!( "l{}", amount.to_string() );
+                sender_jerk.send(amount);
+                count = 0;
+            }
+
         }
-
-        let mut dj_total = Vec3{ x: 0.0, y: 0.0, z: 0.0 };
-        for i in 0..(history.len() - 1) {
-            dj_total += &history[i+1] - &history[i];
-
-        }
-        dj_total.scale(1.0 / history.len() as f32);
-        println!("dj_total: {:?}", dj_total);
-
-        dj_total.x = max( min( dj_total.x.abs(), 1.0 ), 0.0);
-        dj_total.y = max( min( dj_total.y.abs(), 1.0 ), 0.0);
-        dj_total.z = max( min( dj_total.z.abs(), 1.0 ), 0.0);
-        let mut target = display.draw();
-        target.clear_color(dj_total.x.abs(), dj_total.y.abs(), dj_total.z.abs(), 1.0);
-        target.finish().unwrap();
 
         events_loop.poll_events(|event| {
             match event {
@@ -112,5 +151,7 @@ fn main() {
                 _ => (),
             }
         });
+
+        count += 1;
     }
 }
