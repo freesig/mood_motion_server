@@ -2,86 +2,26 @@
 extern crate glium;
 
 use std::net::UdpSocket;
-use std::ops::{Sub, AddAssign, DivAssign};
+use std::collections::VecDeque;
 use glium::{glutin, Surface};
 use std::sync::mpsc;
 use std::sync::mpsc::{Sender, Receiver};
 
 mod arduino;
+mod render;
+mod movement;
 
 use arduino::Port;
 
-const TOTAL: i32 = 50;
-const MIN_ACCEL: f32 = 0.5;
+use movement::Vec3;
 
-#[derive(Debug)]
-struct Vec3{
-    x: f32,
-    y: f32,
-    z: f32,
-}
+const TOTAL: usize = 50;
 
-impl<'a, 'b> Sub<&'b Vec3> for &'a Vec3{
-    type Output = Vec3;
-
-    fn sub(self, other: &'b Vec3) -> Vec3 {
-        Vec3{ x: self.x - other.x,
-        y: self.y - other.y,
-        z: self.z - other.z
-        }
-    }
-}
-
-impl AddAssign for Vec3{
-    fn add_assign(&mut self, other: Vec3) {
-        *self = Vec3{
-            x: self.x + other.x,
-            y: self.y + other.y,
-            z: self.z + other.z,
-        };
-    }
-}
-
-impl Vec3{
-    fn scale(&mut self, amount: f32) {
-        *self = Vec3{
-            x: self.x * amount,
-            y: self.y * amount,
-            z: self.z * amount,
-        };
-    }
-}
-
-fn max(l: f32, r: f32) -> f32{
-    if l.ge(&r) {
-        l
-    }else{
-        r
-    }
-}
-
-fn min(l: f32, r: f32) -> f32{
-    if l.le(&r) {
-        l
-    }else{
-        r
-    }
-}
 
 fn main() {
-    use glium::{glutin, Surface};
-
-    let mut events_loop = glutin::EventsLoop::new();
-    let window = glutin::WindowBuilder::new();
-    let context = glutin::ContextBuilder::new();
-    let display = glium::Display::new(window, context, &events_loop).unwrap();
+    let (display, mut events_loop) = render::init();
 
     let mut socket = UdpSocket::bind("0.0.0.0:44444").unwrap();
-
-    let mut closed = false;
-    // read from the socket
-    let mut buf = [0; 100];
-    let mut history: Vec<Vec3> = Vec::new();
 
     let mut port = arduino::open();
 
@@ -95,63 +35,50 @@ fn main() {
     });
 
     let mut count = 0;
+    
+    // read from the socket
+    let mut buf = [0; 100];
+    let mut accels: VecDeque<Vec3> = VecDeque::with_capacity(TOTAL);
 
-    while !closed {
-        let (amt, src) = socket.recv_from(&mut buf).unwrap();
+    const START_SIZE: usize = 1000;
+    const MIN_BUFFER: f32 = 2.0;
+    let mut start_total = Vec3{x: 0.0, y: 0.0, z: 0.0};
+    for i in 0..START_SIZE {
+        let accel = movement::read(&mut buf, &mut socket);
+        start_total += accel;
+    }
+    start_total.scale(1.0 / START_SIZE as f32);
+    let min_accel = (start_total.x + start_total.y + start_total.z) / 3.0 + MIN_BUFFER;
 
-        let data = std::str::from_utf8(&buf[..]).unwrap();
-        let mut peices = data.split(",");
-        let x: f32 = peices.next().unwrap().parse().unwrap();
-        let y: f32 = peices.next().unwrap().parse().unwrap();
-        let z: f32 = peices.next().unwrap().parse().unwrap();
-        let accel = Vec3{x, y, z};
+    loop {
+        let accel = movement::read(&mut buf, &mut socket);
 
         // A minimum acceleration
-        if accel.x > MIN_ACCEL || accel.y > MIN_ACCEL || accel.z > MIN_ACCEL {
-
-
-            history.push(accel);
-            if history.len() >= TOTAL as usize{
-                history.remove(0);
+        if accel.x > min_accel || accel.y > min_accel || accel.z > min_accel{
+            accels.push_back(accel);
+            if accels.len() >= TOTAL as usize{
+                accels.pop_front();
             }
-
-            let mut dj_total = Vec3{ x: 0.0, y: 0.0, z: 0.0 };
-            for i in 0..(history.len() - 1) {
-                dj_total += &history[i+1] - &history[i];
-
-            }
-            dj_total.scale(1.0 / history.len() as f32);
-            //println!("dj_total: {:?}", dj_total);
-
-            dj_total.x = max( min( dj_total.x.abs(), 1.0 ), 0.0);
-            dj_total.y = max( min( dj_total.y.abs(), 1.0 ), 0.0);
-            dj_total.z = max( min( dj_total.z.abs(), 1.0 ), 0.0);
-            let mut target = display.draw();
-            target.clear_color(dj_total.x.abs(), dj_total.y.abs(), dj_total.z.abs(), 1.0);
-            target.finish().unwrap();
-
-            if count >= 100 {
-                let mut amount = dj_total.x.abs() + dj_total.y.abs() + dj_total.z.abs();
-                amount /= 3.0;
-
-                let amount = (255.0 * amount) as i16;
-                let amount = format!( "l{}", amount.to_string() );
-                sender_jerk.send(amount);
-                count = 0;
-            }
-
         }
 
-        events_loop.poll_events(|event| {
-            match event {
-                glutin::Event::WindowEvent { event, .. } => match event {
-                    glutin::WindowEvent::Closed => closed = true,
-                    _ => ()
-                },
-                _ => (),
-            }
-        });
+        let mut dj_total = movement::extract_jerk(&accels);
 
+        dj_total = movement::clamp_jerk(&dj_total);
+        let mut target = display.draw();
+        let colour = (dj_total.x + dj_total.y + dj_total.z) / 3.0;
+        target.clear_color(colour, colour, colour, 1.0);
+        target.finish().unwrap();
+
+        if count >= 100 {
+            let amount = movement::jerk_to_light(&dj_total);
+            sender_jerk.send(amount);
+            count = 0;
+        }
+
+
+        if render::events(&mut events_loop) {
+            break;
+        };
         count += 1;
     }
 }
