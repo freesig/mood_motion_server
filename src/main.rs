@@ -14,6 +14,7 @@ mod movement;
 use arduino::Port;
 
 use movement::Vec3;
+use movement::max;
 
 const TOTAL: usize = 50;
 
@@ -40,6 +41,9 @@ fn main() {
     let mut buf = [0; 100];
     let mut accels: VecDeque<Vec3> = VecDeque::with_capacity(TOTAL);
 
+    const J_BUFF_LEN: usize = 100;
+    let mut jerks: VecDeque<f32> = VecDeque::with_capacity(J_BUFF_LEN);
+
     const START_SIZE: usize = 1000;
     const MIN_BUFFER: f32 = 2.0;
     let mut start_total = Vec3{x: 0.0, y: 0.0, z: 0.0};
@@ -56,7 +60,7 @@ fn main() {
         // A minimum acceleration
         if accel.x > min_accel || accel.y > min_accel || accel.z > min_accel{
             accels.push_back(accel);
-            if accels.len() >= TOTAL as usize{
+            if accels.len() >= TOTAL{
                 accels.pop_front();
             }
         }
@@ -64,9 +68,18 @@ fn main() {
         let mut dj_total = movement::extract_jerk(&accels);
 
         dj_total = movement::clamp_jerk(&dj_total);
+        
+        let jerk = max(dj_total.x, max(dj_total.y, dj_total.z) );
+        jerks.push_back(jerk);
+        if jerks.len() >= J_BUFF_LEN{
+            jerks.pop_front();
+        }
+
+        let colour = movement::average(&jerks);
+
         let mut target = display.draw();
-        let colour = (dj_total.x + dj_total.y + dj_total.z) / 3.0;
         target.clear_color(colour, colour, colour, 1.0);
+        println!("colour {}", colour);
         target.finish().unwrap();
 
         if count >= 100 {

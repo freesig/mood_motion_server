@@ -41,7 +41,7 @@ impl Vec3{
     }
 }
 
-fn max(l: f32, r: f32) -> f32{
+pub fn max(l: f32, r: f32) -> f32{
     if l.ge(&r) {
         l
     }else{
@@ -100,4 +100,12 @@ pub fn clamp_jerk(j: & Vec3) -> Vec3{
     jc.y = max( min( j.y.abs(), 1.0 ), 0.0);
     jc.z = max( min( j.z.abs(), 1.0 ), 0.0);
     jc
+}
+
+pub fn average(jerks: & VecDeque<f32>) -> f32 {
+    let mut j_total = 0.0;
+    for j in jerks {
+        j_total += *j;
+    }
+    j_total / jerks.len() as f32
 }
