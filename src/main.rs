@@ -79,12 +79,13 @@ fn main() {
 
         let mut target = display.draw();
         target.clear_color(colour, colour, colour, 1.0);
-        println!("colour {}", colour);
         target.finish().unwrap();
 
-        if count >= 100 {
-            let amount = movement::jerk_to_light(&dj_total);
-            sender_jerk.send(amount);
+        if count >= 50 {
+            let msg = movement::jerk_to_light(colour, 0);
+            sender_jerk.send(msg);
+            let msg = movement::jerk_to_light(colour, 1);
+            sender_jerk.send(msg);
             count = 0;
         }
 

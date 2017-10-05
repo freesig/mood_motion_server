@@ -87,11 +87,9 @@ pub fn extract_jerk(accels: & VecDeque<Vec3>) -> Vec3 {
     dj_total
 }
 
-pub fn jerk_to_light(jerk: & Vec3) -> String{
-    let mut amount = jerk.x.abs() + jerk.y.abs() + jerk.z.abs();
-    amount /= 3.0;
-    let amount = (255.0 * amount) as i16;
-    format!( "l{}", amount.to_string() )
+pub fn jerk_to_light(colour: f32, light: i16) -> String{
+    let colour = (255.0 * colour) as i32;
+    format!( "l{}{},{},{},x", light, colour, colour, colour)
 }
 
 pub fn clamp_jerk(j: & Vec3) -> Vec3{

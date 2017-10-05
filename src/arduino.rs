@@ -49,4 +49,3 @@ pub fn interact<T: SerialPort>(port: &mut T, receiver: Receiver<String>) -> seri
     }
     Ok(())
 }
-
