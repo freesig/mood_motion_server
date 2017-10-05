@@ -49,3 +49,7 @@ pub fn interact<T: SerialPort>(port: &mut T, receiver: Receiver<String>) -> seri
     }
     Ok(())
 }
+
+pub fn light_to_msg(colour: & ::render::Colour<i16>, light: i16) -> String{
+    format!( "l{}{}x", light, colour)
+}
