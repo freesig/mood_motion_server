@@ -5,6 +5,9 @@ use std::vec::Vec;
 use std::vec::IntoIter;
 use std::iter::Cycle;
 use std::io::Read;
+use ::render::Colour;
+use serde_json;
+use serde_json::Value;
 
 pub struct Cloud{
     pattern: Cycle< std::vec::IntoIter<u8> >,
@@ -12,10 +15,58 @@ pub struct Cloud{
     max: u8,
 }
 
+pub struct ColourCloud{
+    pattern: Cycle< std::vec::IntoIter< Colour<u8> > >,
+}
+
 impl Iterator for Cloud{
     type Item = u8;
     fn next(&mut self) -> Option<u8>{
         self.pattern.next()
+    }
+}
+
+impl Iterator for ColourCloud{
+    type Item = Colour<u8>;
+    fn next(&mut self) -> Option< Colour<u8> >{
+        self.pattern.next()
+    }
+}
+
+pub fn load_json(p: &Path) -> Option<ColourCloud> {
+    match File::open(&p){
+        Ok(mut f) => {
+            match serde_json::from_reader(f){
+                Ok(v) =>{
+                    let mut pattern: Vec< Colour<u8> > = Vec::new();
+                    let val_arr = match v{
+                        Value::Array(data) => Some(data),
+                        _ => None,
+                    };
+                    match val_arr{
+                        Some(v_arr) =>{
+                            for d in v_arr{
+                                pattern.push( serde_json::from_value(d).unwrap() );
+                            }
+                            let size = pattern.len();
+                            let it = pattern.into_iter();
+                            let mut c = ColourCloud{pattern: it.cycle()};
+                            println!("Read in {} colours to cloud", size);
+                            Some(c)
+                        },
+                        None => None,
+                    }
+                },
+                Err(_) => {
+                    println!("Couldn't load json");
+                    None
+                },
+            }
+        },
+        Err(_) => {
+            println!("Could not load file into memory");
+            None
+        },
     }
 }
 
@@ -53,8 +104,13 @@ pub fn load(p: &Path, min: u8, max: u8) -> Option<Cloud> {
     }
 }
 
-pub fn cloud_to_light(c: &mut Cloud) -> ::render::Colour<i16>{
+pub fn cloud_to_light(c: &mut Cloud) -> Colour<i16>{
     let brightness = c.next().unwrap();
     let brightness = (brightness as f32 / (c.max - c.min) as f32 * 255.0) as i16;
-    ::render::Colour{r: brightness, g: brightness, b: brightness}
+    Colour{r: brightness, g: brightness, b: brightness}
+}
+
+pub fn cloud_to_colour(c: &mut ColourCloud) -> Colour<i16>{
+    let c = c.next().unwrap();
+    Colour{r: c.r as i16, g: c.g as i16, b: c.b as i16}
 }

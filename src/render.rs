@@ -1,6 +1,7 @@
 use glium::{glutin, Surface, Display};
 use std;
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Colour<T>{
     pub r: T,
     pub g: T,

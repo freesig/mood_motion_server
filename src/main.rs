@@ -1,6 +1,12 @@
 #[macro_use]
 extern crate glium;
 
+extern crate serde;
+extern crate serde_json;
+
+#[macro_use]
+extern crate serde_derive;
+
 use std::net::UdpSocket;
 use std::collections::VecDeque;
 use glium::{glutin, Surface};
@@ -20,6 +26,7 @@ use movement::Vec3;
 use movement::max;
 
 use clouds::Cloud;
+use clouds::ColourCloud;
 
 const TOTAL: usize = 50;
 
@@ -30,6 +37,17 @@ fn create_clouds() -> Vec<Cloud> {
     match storm {
         Some(s) => patterns.push(s),
         None => println!("Failed to create clouds"),
+    }
+    patterns
+}
+
+fn create_colour_clouds() -> Vec<ColourCloud>{
+    let p = Path::new("data/storm.json");
+    let storm = clouds::load_json(&p);
+    let mut patterns: Vec<ColourCloud> = Vec::new();
+    match storm {
+        Some(s) => patterns.push(s),
+        None => println!("Failed to create colour clouds"),
     }
     patterns
 }
@@ -56,10 +74,32 @@ fn run_clouds(mut patterns: Vec<Cloud>, tx: Sender<String>, j: Arc< Mutex<f32> >
     }
 }
 
+fn run_colour_clouds(mut patterns: Vec<ColourCloud>, tx: Sender<String>, j: Arc< Mutex<f32> >){
+    // To make 24fps
+    let speed = std::time::Duration::from_millis(41);
+    let mut last = std::time::Instant::now();
+    loop{
+        while last.elapsed() < speed{
+            std::thread::sleep( std::time::Duration::from_millis(5) );
+        }
+        for mut c in &mut patterns{
+            let mut colour = clouds::cloud_to_colour(&mut c);
+            let mut jerk = j.lock().unwrap();
+            println!("Jerk: {}", *jerk);
+            colour.scale( *jerk );
+            let msg = arduino::light_to_msg(&colour, 0);
+            tx.send(msg);
+            let msg = arduino::light_to_msg(&colour, 1);
+            tx.send(msg);
+        }
+        last = std::time::Instant::now();
+    }
+}
+
 fn main() {
     let (display, mut events_loop) = render::init();
 
-    let mut patterns = create_clouds();
+    let mut patterns = create_colour_clouds();
 
     let mut socket = UdpSocket::bind("0.0.0.0:44444").unwrap();
 
@@ -78,7 +118,7 @@ fn main() {
 
     let aj2 = average_jerk.clone();
     std::thread::spawn(move ||{
-        run_clouds( patterns, sender_jerk, aj2);
+        run_colour_clouds( patterns, sender_jerk, aj2);
     });
 
     let mut count = 0;
