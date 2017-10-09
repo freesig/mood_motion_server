@@ -51,6 +51,8 @@ fn create_colour_clouds() -> Vec<ColourCloud>{
     CloudSet{p: Path::new("data/fog.json"), mood: 150, channel: Channel::Two} ,
     CloudSet{p: Path::new("data/sunset.json"), mood: 200, channel: Channel::Two} ,
     CloudSet{p: Path::new("data/storm.json"), mood: 255, channel: Channel::One} ,
+    CloudSet{p: Path::new("data/storm2.json"), mood: 225, channel: Channel::One} ,
+    CloudSet{p: Path::new("data/storm_short.json"), mood: 255, channel: Channel::Two} ,
         ];
     for s in settings{
         match clouds::load_json(s){
