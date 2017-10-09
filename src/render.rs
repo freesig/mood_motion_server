@@ -1,5 +1,6 @@
 use glium::{glutin, Surface, Display};
 use std;
+use std::ops::AddAssign;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Colour<T>{
@@ -13,6 +14,16 @@ impl Colour<i16>{
         self.r = (self.r as f32 * val) as i16;
         self.g = (self.g as f32 * val) as i16;
         self.b = (self.b as f32 * val) as i16;
+    }
+}
+
+impl AddAssign for Colour<i16>{
+    fn add_assign(&mut self, other: Colour<i16>) {
+        *self = Colour{
+            r: self.r + other.r,
+            g: self.g + other.g,
+            b: self.b + other.b,
+        };
     }
 }
 

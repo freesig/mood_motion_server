@@ -25,8 +25,9 @@ use arduino::Port;
 use movement::Vec3;
 use movement::max;
 
-use clouds::Cloud;
-use clouds::ColourCloud;
+use clouds::{Cloud, ColourCloud, CloudSet, Channel};
+
+use render::Colour;
 
 const TOTAL: usize = 50;
 
@@ -42,12 +43,20 @@ fn create_clouds() -> Vec<Cloud> {
 }
 
 fn create_colour_clouds() -> Vec<ColourCloud>{
-    let p = Path::new("data/storm.json");
-    let storm = clouds::load_json(&p);
     let mut patterns: Vec<ColourCloud> = Vec::new();
-    match storm {
-        Some(s) => patterns.push(s),
-        None => println!("Failed to create colour clouds"),
+    let settings = vec![
+    CloudSet{p: Path::new("data/sunrise_long.json"), mood: 0, channel: Channel::One} ,
+    CloudSet{p: Path::new("data/sunrise.json"), mood: 20, channel: Channel::Two} ,
+    CloudSet{p: Path::new("data/sky.json"), mood: 100, channel: Channel::One} ,
+    CloudSet{p: Path::new("data/fog.json"), mood: 150, channel: Channel::Two} ,
+    CloudSet{p: Path::new("data/sunset.json"), mood: 200, channel: Channel::Two} ,
+    CloudSet{p: Path::new("data/storm.json"), mood: 255, channel: Channel::One} ,
+        ];
+    for s in settings{
+        match clouds::load_json(s){
+            Some(cc) => patterns.push(cc),
+            None => println!("Failed to create colour clouds"),
+        }
     }
     patterns
 }
@@ -82,16 +91,21 @@ fn run_colour_clouds(mut patterns: Vec<ColourCloud>, tx: Sender<String>, j: Arc<
         while last.elapsed() < speed{
             std::thread::sleep( std::time::Duration::from_millis(5) );
         }
+        let mut jerk = j.lock().unwrap();
+        println!("Jerk: {}", *jerk);
+        let mut colour_tot: Colour<i16> = Colour{r: 0, g: 0, b: 0}; 
         for mut c in &mut patterns{
-            let mut colour = clouds::cloud_to_colour(&mut c);
-            let mut jerk = j.lock().unwrap();
-            println!("Jerk: {}", *jerk);
-            colour.scale( *jerk );
-            let msg = arduino::light_to_msg(&colour, 0);
-            tx.send(msg);
-            let msg = arduino::light_to_msg(&colour, 1);
-            tx.send(msg);
+            let mut colour = clouds::cloud_to_colour(&mut c, *jerk);
+            colour_tot += colour;
         }
+        //colour_tot.scale( *jerk );
+        // Skew to compensate for voltage
+        colour_tot.g = (colour_tot.g as f32 * 0.8) as i16;
+        colour_tot.b = (colour_tot.b as f32 * 0.8) as i16;
+        let msg = arduino::light_to_msg(&colour_tot, 0);
+        tx.send(msg);
+        let msg = arduino::light_to_msg(&colour_tot, 1);
+        tx.send(msg);
         last = std::time::Instant::now();
     }
 }
