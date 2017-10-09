@@ -44,7 +44,7 @@ void setup() {
     lights[i].pin = pins[i];
     lights[i].col = {0, 0, 0};
   }
-  Serial.begin(9600);
+  Serial.begin(57600);
   for (int i = 0; i < NUM_LIGHTS; ++i) {
     pinMode(lights[i].pin.r, OUTPUT);
     pinMode(lights[i].pin.g, OUTPUT);

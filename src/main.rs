@@ -87,24 +87,33 @@ fn run_colour_clouds(mut patterns: Vec<ColourCloud>, tx: Sender<String>, j: Arc<
     // To make 24fps
     let speed = std::time::Duration::from_millis(41);
     let mut last = std::time::Instant::now();
+    let mut colour_tots: [Colour<i16>; 2] = [
+        Colour{r: 0, g: 0, b: 0},
+        Colour{r: 0, g: 0, b: 0} ];
     loop{
+        colour_tots[0] = Colour{r: 0, g: 0, b: 0};
+        colour_tots[1] = Colour{r: 0, g: 0, b: 0};
+        let mut jerk = j.lock().unwrap();
+        println!("Jerk: {}", *jerk);
+        for mut c in &mut patterns{
+            let channel = match c.channel {
+                Channel::One => 0,
+                Channel::Two => 1,
+            };
+            let mut colour = clouds::cloud_to_colour(&mut c, *jerk);
+            colour_tots[channel] += colour;
+        }
+        // Skew to compensate for voltage
+        for i in 0..2{
+            colour_tots[i].g = (colour_tots[i].g as f32 * 0.8) as i16;
+            colour_tots[i].b = (colour_tots[i].b as f32 * 0.8) as i16;
+        }
         while last.elapsed() < speed{
             std::thread::sleep( std::time::Duration::from_millis(5) );
         }
-        let mut jerk = j.lock().unwrap();
-        println!("Jerk: {}", *jerk);
-        let mut colour_tot: Colour<i16> = Colour{r: 0, g: 0, b: 0}; 
-        for mut c in &mut patterns{
-            let mut colour = clouds::cloud_to_colour(&mut c, *jerk);
-            colour_tot += colour;
-        }
-        //colour_tot.scale( *jerk );
-        // Skew to compensate for voltage
-        colour_tot.g = (colour_tot.g as f32 * 0.8) as i16;
-        colour_tot.b = (colour_tot.b as f32 * 0.8) as i16;
-        let msg = arduino::light_to_msg(&colour_tot, 0);
+        let msg = arduino::light_to_msg(&colour_tots[0], 0);
         tx.send(msg);
-        let msg = arduino::light_to_msg(&colour_tot, 1);
+        let msg = arduino::light_to_msg(&colour_tots[1], 1);
         tx.send(msg);
         last = std::time::Instant::now();
     }

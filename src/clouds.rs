@@ -29,7 +29,7 @@ pub struct CloudSet<'a>{
 pub struct ColourCloud{
     pattern: Cycle< std::vec::IntoIter< Colour<u8> > >,
     mood: i16,
-    channel: Channel,
+    pub channel: Channel,
 }
 
 impl Iterator for Cloud{

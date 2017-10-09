@@ -6,7 +6,7 @@ use std::time::Duration;
 use std::thread::sleep;
 
 const SETTINGS: serial::PortSettings = serial::PortSettings {
-    baud_rate:    serial::Baud9600,
+    baud_rate:    serial::Baud57600,
     char_size:    serial::Bits8,
     parity:       serial::ParityNone,
     stop_bits:    serial::Stop1,
