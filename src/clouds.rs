@@ -125,7 +125,7 @@ pub fn cloud_to_light(c: &mut Cloud) -> Colour<i16>{
 }
 
 pub fn cloud_to_colour(c: &mut ColourCloud, jerk: f32) -> Colour<i16>{
-    let clamp = 3;
+    let clamp = 4;
     let jerk = (255.0 * jerk) as i16;
     let mut distance = (c.mood - jerk).abs();
     distance /= clamp;

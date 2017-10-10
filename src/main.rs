@@ -54,11 +54,11 @@ fn create_clouds() -> Vec<Cloud> {
 fn create_colour_clouds() -> Vec<ColourCloud>{
     let mut patterns: Vec<ColourCloud> = Vec::new();
     let settings = vec![
-    CloudSet{p: Path::new("data/sunrise_long.json"), mood: 0, channel: Channel::One} ,
-    CloudSet{p: Path::new("data/sunrise.json"), mood: 20, channel: Channel::Two} ,
-    CloudSet{p: Path::new("data/sky.json"), mood: 100, channel: Channel::One} ,
-    CloudSet{p: Path::new("data/fog.json"), mood: 150, channel: Channel::Two} ,
-    CloudSet{p: Path::new("data/sunset.json"), mood: 200, channel: Channel::Two} ,
+    CloudSet{p: Path::new("data/sky.json"), mood: 0, channel: Channel::One} ,
+    CloudSet{p: Path::new("data/fog.json"), mood: 40, channel: Channel::Two} ,
+    CloudSet{p: Path::new("data/sunrise_long.json"), mood: 100, channel: Channel::One} ,
+    CloudSet{p: Path::new("data/sunrise.json"), mood: 125, channel: Channel::Two} ,
+    CloudSet{p: Path::new("data/sunset.json"), mood: 150, channel: Channel::One} ,
     CloudSet{p: Path::new("data/storm.json"), mood: 255, channel: Channel::One} ,
     CloudSet{p: Path::new("data/storm2.json"), mood: 225, channel: Channel::One} ,
     CloudSet{p: Path::new("data/storm_short.json"), mood: 255, channel: Channel::Two} ,
@@ -180,12 +180,7 @@ fn gather_accels(mut socket: UdpSocket, dj: Arc< Mutex<Vec3> >, mut min_accel: f
 
 fn main() {
     let (display, mut events_loop, text) = render::init();
-/*
-    let font = glium_text::FontTexture::new(
-        &display, &include_bytes!("../font/Verdana.ttf")[..], 70, 
-        glium_text::FontTexture::ascii_character_list()).unwrap();
-    let text = glium_text::TextDisplay::new(&system, &font, "Hello world!");
-*/
+    
     let mut patterns = create_colour_clouds();
 
     let mut socket = UdpSocket::bind("0.0.0.0:44444").unwrap();
