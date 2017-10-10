@@ -22,6 +22,13 @@ impl Buffer{
     pub fn cap(&self) -> usize {
         self.size
     }
+
+    pub fn last(&self) -> Option<f32>{
+        match self.vals.back(){
+            Some(v) => Some(*v),
+            None => None,
+        }
+    }
 }
 
 pub fn average(b: & Buffer) -> f32 {

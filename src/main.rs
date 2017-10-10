@@ -126,7 +126,7 @@ fn run_colour_clouds(mut patterns: Vec<ColourCloud>, tx: Sender<String>, j: Arc<
 
 fn pre_balance(mut buf: &mut[u8], mut socket: &mut UdpSocket) -> f32 {
     const START_SIZE: usize = 500;
-    const MIN_BUFFER: f32 = 1.0;
+    const MIN_BUFFER: f32 = 0.8;
     let mut start_total = Vec3{x: 0.0, y: 0.0, z: 0.0};
     for i in 0..START_SIZE {
         let accel = movement::read(&mut buf, &mut socket);
@@ -201,7 +201,7 @@ fn main() {
     // read from the socket
     let mut buf = [0; 100];
 
-    const J_BUFF_LEN: usize = 100;
+    const J_BUFF_LEN: usize = 10;
     let mut jerks = Buffer::new(J_BUFF_LEN);
 
     let min_accel = pre_balance(&mut buf, &mut socket);
@@ -215,10 +215,16 @@ fn main() {
 
         let mut dj_total = dj.lock().unwrap().clone();
 
+        println!("current jerk: {:?}", dj_total);
         dj_total = movement::clamp_jerk(&dj_total);
         
         let jerk = max( dj_total.x, max(dj_total.y, dj_total.z) );
-        jerks.add(jerk);
+        let last_jerk = jerks.last();
+        match last_jerk {
+            Some(j) if j != jerk => jerks.add(jerk),
+            Some(_) => (),
+            None => jerks.add(jerk),
+        };
 
         let colour = buffer::average(&jerks);
         *average_jerk.lock().unwrap() = colour;
