@@ -2,8 +2,9 @@ use std;
 use std::net::UdpSocket;
 use std::collections::VecDeque;
 use std::ops::{Sub, AddAssign, DivAssign};
+use std::cmp::PartialEq;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Vec3{
     pub x: f32,
     pub y: f32,
@@ -19,6 +20,24 @@ impl<'a, 'b> Sub<&'b Vec3> for &'a Vec3{
         y: self.y - other.y,
         z: self.z - other.z
         }
+    }
+}
+
+impl std::fmt::Display for Vec3{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, " x: {}, y: {}, z: {} ", self.x, self.y, self.z)
+    }
+}
+
+impl PartialEq for Vec3{
+    fn eq(&self, other: &Self) -> bool {
+        if self.x == other.x &&
+            self.y == other.y &&
+                self.z == other.z {
+                    return true;
+                }else{
+                    return false;
+                }
     }
 }
 

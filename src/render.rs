@@ -2,6 +2,9 @@ use glium::{glutin, Surface, Display};
 use std;
 use std::ops::AddAssign;
 use ::buffer::Buffer;
+use ::font::Text;
+use movement::Vec3;
+use std::sync::mpsc::Sender;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Colour<T>{
@@ -34,17 +37,19 @@ impl std::fmt::Display for Colour<i16>{
     }
 }
 
-pub fn init() -> (Display, glutin::EventsLoop){
+pub fn init() -> (Display, glutin::EventsLoop, Text){
 
     let mut events_loop = glutin::EventsLoop::new();
     let window = glutin::WindowBuilder::new();
     let context = glutin::ContextBuilder::new();
-    let dispay = Display::new(window, context, &events_loop).unwrap();
-    (dispay, events_loop)
+    let display = Display::new(window, context, &events_loop).unwrap();
+    let t = Text::new(&display);
+    (display, events_loop, t)
 
 }
 
-pub fn events(events_loop: &mut glutin::EventsLoop, jerks: &mut Buffer) -> bool {
+pub fn events(events_loop: &mut glutin::EventsLoop, jerks: &mut Buffer, 
+              amp: &mut f32, min_accel: &mut f32, min_sender: &Sender<f32>) -> bool {
     use glutin::{WindowEvent, KeyboardInput, VirtualKeyCode, ElementState};
     let mut close = false;
     events_loop.poll_events(|event| {
@@ -74,6 +79,45 @@ pub fn events(events_loop: &mut glutin::EventsLoop, jerks: &mut Buffer) -> bool 
                             ::buffer::new_buff_size(new_size, jerks);
                             println!( "Buffer size: {}", jerks.cap() );
                         }, 
+                        KeyboardInput{ virtual_keycode: Some(VirtualKeyCode::W),
+                        state: ElementState::Pressed, ..} => {
+                            *amp *= 2.0;
+                        },
+                        KeyboardInput{ virtual_keycode: Some(VirtualKeyCode::S),
+                        state: ElementState::Pressed, ..} => {
+                            *amp /= 2.0;
+                            if *amp <= 1.0 {
+                                *amp = 1.0;
+                            }
+                        },
+                        KeyboardInput{ virtual_keycode: Some(VirtualKeyCode::D),
+                        state: ElementState::Pressed, ..} => {
+                            *amp += 1.0;
+                        },
+                        KeyboardInput{ virtual_keycode: Some(VirtualKeyCode::A),
+                        state: ElementState::Pressed, ..} => {
+                            *amp -= 1.0;
+                            if *amp <= 1.0 {
+                                *amp = 1.0;
+                            }
+                        },
+                        KeyboardInput{ virtual_keycode: Some(VirtualKeyCode::X),
+                        state: ElementState::Pressed, ..} => {
+                            *min_accel += 0.5;
+                            min_sender.send(*min_accel);
+                        },
+                        KeyboardInput{ virtual_keycode: Some(VirtualKeyCode::Z),
+                        state: ElementState::Pressed, ..} => {
+                            *min_accel -= 0.5;
+                            if *min_accel <= 0.0 {
+                                *min_accel = 0.0;
+                            }
+                            min_sender.send(*min_accel);
+                        },
+                        KeyboardInput{ virtual_keycode: Some(VirtualKeyCode::Q),
+                        state: ElementState::Pressed, ..} => {
+                            close = true;
+                        },
                         _ => (),
                     };
                 },
@@ -83,4 +127,11 @@ pub fn events(events_loop: &mut glutin::EventsLoop, jerks: &mut Buffer) -> bool 
         }
     });
     close
+}
+
+pub fn to_text(avg_jerk: f32, cur_jerk: &Vec3,
+               buf_size: usize, amp: &f32, min_accel: &f32) -> (String, String){
+    let out1 = format!("Average jerk: {} current jerk {}", avg_jerk, cur_jerk);
+    let out2 = format!("num jerks: {} amp: {} min acc: {}", buf_size, amp, min_accel);
+    (out1, out2)
 }

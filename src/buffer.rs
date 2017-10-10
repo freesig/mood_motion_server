@@ -12,6 +12,12 @@ impl Buffer{
         Buffer{ vals, size } 
     }
     
+    pub fn new_fill(v: f32, size: usize) -> Self {
+        let mut vals: VecDeque<f32> = VecDeque::with_capacity(size);
+        vals.extend( std::iter::repeat(v).take(size) );
+        Buffer{ vals, size } 
+    }
+    
     pub fn add(&mut self, val: f32) {
         self.vals.push_back(val);
         if self.vals.len() >= self.size {
