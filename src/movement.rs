@@ -10,6 +10,7 @@ pub struct Vec3{
     pub z: f32,
 }
 
+
 impl<'a, 'b> Sub<&'b Vec3> for &'a Vec3{
     type Output = Vec3;
 
@@ -100,10 +101,3 @@ pub fn clamp_jerk(j: & Vec3) -> Vec3{
     jc
 }
 
-pub fn average(jerks: & VecDeque<f32>) -> f32 {
-    let mut j_total = 0.0;
-    for j in jerks {
-        j_total += *j;
-    }
-    j_total / jerks.len() as f32
-}

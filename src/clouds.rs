@@ -132,8 +132,10 @@ pub fn cloud_to_colour(c: &mut ColourCloud, jerk: f32) -> Colour<i16>{
     let distance = std::cmp::max(distance, 1) as f32;
     let brightness = 255.0 / distance; 
     let brightness = brightness / 255.0;
+    /*
     println!("distance: {}", distance);
     println!("brightness: {}", brightness);
+    */
     let c = c.next().unwrap();
     let mut c = Colour{r: c.r as i16, g: c.g as i16, b: c.b as i16};
     c.scale(brightness);

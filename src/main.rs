@@ -19,6 +19,7 @@ mod arduino;
 mod render;
 mod movement;
 mod clouds;
+mod buffer;
 
 use arduino::Port;
 
@@ -28,6 +29,8 @@ use movement::max;
 use clouds::{Cloud, ColourCloud, CloudSet, Channel};
 
 use render::Colour;
+
+use buffer::Buffer;
 
 const TOTAL: usize = 50;
 
@@ -96,7 +99,9 @@ fn run_colour_clouds(mut patterns: Vec<ColourCloud>, tx: Sender<String>, j: Arc<
         colour_tots[0] = Colour{r: 0, g: 0, b: 0};
         colour_tots[1] = Colour{r: 0, g: 0, b: 0};
         let mut jerk = j.lock().unwrap();
+        /*
         println!("Jerk: {}", *jerk);
+        */
         for mut c in &mut patterns{
             let channel = match c.channel {
                 Channel::One => 0,
@@ -153,9 +158,9 @@ fn main() {
     let mut accels: VecDeque<Vec3> = VecDeque::with_capacity(TOTAL);
 
     const J_BUFF_LEN: usize = 100;
-    let mut jerks: VecDeque<f32> = VecDeque::with_capacity(J_BUFF_LEN);
+    let mut jerks = Buffer::new(J_BUFF_LEN);
 
-    const START_SIZE: usize = 1000;
+    const START_SIZE: usize = 100;
     const MIN_BUFFER: f32 = 2.0;
     let mut start_total = Vec3{x: 0.0, y: 0.0, z: 0.0};
     for i in 0..START_SIZE {
@@ -180,29 +185,15 @@ fn main() {
 
         dj_total = movement::clamp_jerk(&dj_total);
         
-        let jerk = max(dj_total.x, max(dj_total.y, dj_total.z) );
-        jerks.push_back(jerk);
-        if jerks.len() >= J_BUFF_LEN{
-            jerks.pop_front();
-        }
+        let jerk = max( dj_total.x, max(dj_total.y, dj_total.z) );
+        jerks.add(jerk);
 
-        let colour = movement::average(&jerks);
+        let colour = buffer::average(&jerks);
         *average_jerk.lock().unwrap() = colour;
 
         let mut target = display.draw();
         target.clear_color(colour, colour, colour, 1.0);
         target.finish().unwrap();
-
-        if count >= 50 {
-            /*
-            let msg = movement::jerk_to_light(colour, 0);
-            sender_jerk.send(msg);
-            let msg = movement::jerk_to_light(colour, 1);
-            sender_jerk.send(msg);
-            */
-            count = 0;
-        }
-
 
         if render::events(&mut events_loop) {
             break;

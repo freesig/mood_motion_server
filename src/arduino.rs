@@ -40,7 +40,7 @@ pub fn interact<T: SerialPort>(port: &mut T, receiver: Receiver<String>) -> seri
             Ok(input) =>{
                 let buf: Vec<u8> = input.as_bytes().to_vec();
                 try!(port.write(&buf[..]));
-                println!("Sending to arduino: {}", input);
+                //println!("Sending to arduino: {}", input);
                 //sleep(Duration::from_millis(1000));
             },
             Err(error) => println!("error: {}", error),

@@ -44,11 +44,21 @@ pub fn init() -> (Display, glutin::EventsLoop){
 }
 
 pub fn events(events_loop: & mut glutin::EventsLoop) -> bool {
+    use glutin::{WindowEvent, KeyboardInput, VirtualKeyCode, ElementState};
     let mut close = false;
     events_loop.poll_events(|event| {
         match event {
             glutin::Event::WindowEvent { event, .. } => match event {
-                glutin::WindowEvent::Closed => close = true,
+                WindowEvent::Closed => close = true,
+                WindowEvent::KeyboardInput{ input, .. } => {
+                    match input{
+                        KeyboardInput { virtual_keycode: Some(VirtualKeyCode::Minus),
+                        state: ElementState::Pressed, .. } => println!("minus"), 
+                       KeyboardInput{ virtual_keycode: Some(VirtualKeyCode::Equals),
+                       state: ElementState::Pressed, ..} => println!("equals"), 
+                       _ => (),
+                    };
+                },
                 _ => ()
             },
             _ => (),
