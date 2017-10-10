@@ -18,6 +18,10 @@ impl Buffer{
             self.vals.pop_front();
         }
     }
+
+    pub fn cap(&self) -> usize {
+        self.size
+    }
 }
 
 pub fn average(b: & Buffer) -> f32 {
@@ -29,9 +33,10 @@ pub fn average(b: & Buffer) -> f32 {
 }
 
 pub fn new_buff_size(to: usize, b: &mut Buffer) {
-    if b.size < to {
+    if b.size > to {
         b.vals.truncate(to);
-    }else if b.size > to {
+    }else if b.size < to {
         b.vals.reserve(to - b.size);
     }
+    b.size = to;
 }

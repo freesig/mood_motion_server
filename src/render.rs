@@ -1,6 +1,7 @@
 use glium::{glutin, Surface, Display};
 use std;
 use std::ops::AddAssign;
+use ::buffer::Buffer;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Colour<T>{
@@ -43,7 +44,7 @@ pub fn init() -> (Display, glutin::EventsLoop){
 
 }
 
-pub fn events(events_loop: & mut glutin::EventsLoop) -> bool {
+pub fn events(events_loop: &mut glutin::EventsLoop, jerks: &mut Buffer) -> bool {
     use glutin::{WindowEvent, KeyboardInput, VirtualKeyCode, ElementState};
     let mut close = false;
     events_loop.poll_events(|event| {
@@ -53,10 +54,27 @@ pub fn events(events_loop: & mut glutin::EventsLoop) -> bool {
                 WindowEvent::KeyboardInput{ input, .. } => {
                     match input{
                         KeyboardInput { virtual_keycode: Some(VirtualKeyCode::Minus),
-                        state: ElementState::Pressed, .. } => println!("minus"), 
-                       KeyboardInput{ virtual_keycode: Some(VirtualKeyCode::Equals),
-                       state: ElementState::Pressed, ..} => println!("equals"), 
-                       _ => (),
+                        state: ElementState::Pressed, .. } => {
+                            println!("minus");
+                            println!( "Buffer size: {}", jerks.cap() );
+                            let mut new_size = jerks.cap() / 2; 
+                            if new_size < 4 {
+                                new_size = 4;
+                            }
+                            println!("new size: {}", new_size);
+                            ::buffer::new_buff_size(new_size, jerks);
+                            println!( "Buffer size: {}", jerks.cap() );
+                        }, 
+                        KeyboardInput{ virtual_keycode: Some(VirtualKeyCode::Equals),
+                        state: ElementState::Pressed, ..} => {
+                            println!("equals");
+                            println!( "Buffer size: {}", jerks.cap() );
+                            let new_size = jerks.cap() * 2; 
+                            println!("new size: {}", new_size);
+                            ::buffer::new_buff_size(new_size, jerks);
+                            println!( "Buffer size: {}", jerks.cap() );
+                        }, 
+                        _ => (),
                     };
                 },
                 _ => ()

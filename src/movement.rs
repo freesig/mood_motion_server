@@ -3,7 +3,7 @@ use std::net::UdpSocket;
 use std::collections::VecDeque;
 use std::ops::{Sub, AddAssign, DivAssign};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Vec3{
     pub x: f32,
     pub y: f32,

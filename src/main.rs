@@ -99,9 +99,7 @@ fn run_colour_clouds(mut patterns: Vec<ColourCloud>, tx: Sender<String>, j: Arc<
         colour_tots[0] = Colour{r: 0, g: 0, b: 0};
         colour_tots[1] = Colour{r: 0, g: 0, b: 0};
         let mut jerk = j.lock().unwrap();
-        /*
         println!("Jerk: {}", *jerk);
-        */
         for mut c in &mut patterns{
             let channel = match c.channel {
                 Channel::One => 0,
@@ -126,6 +124,51 @@ fn run_colour_clouds(mut patterns: Vec<ColourCloud>, tx: Sender<String>, j: Arc<
     }
 }
 
+fn pre_balance(mut buf: &mut[u8], mut socket: &mut UdpSocket) -> f32 {
+    const START_SIZE: usize = 500;
+    const MIN_BUFFER: f32 = 1.0;
+    let mut start_total = Vec3{x: 0.0, y: 0.0, z: 0.0};
+    for i in 0..START_SIZE {
+        let accel = movement::read(&mut buf, &mut socket);
+        start_total += accel;
+    }
+    start_total.scale(1.0 / START_SIZE as f32);
+    let min_accel = max( start_total.x, max(start_total.y, start_total.z) ) + MIN_BUFFER;
+    min_accel
+}
+
+fn gather_accels(mut socket: UdpSocket, dj: Arc< Mutex<Vec3> >, min_accel: f32){
+    let mut accels: VecDeque<Vec3> = VecDeque::with_capacity(TOTAL);
+    let mut buf = [0; 100];
+    loop{
+        let accel = movement::read(&mut buf, &mut socket);
+
+        // A minimum acceleration
+        let mut new_accel = match accels.back() {
+            Some(a) => a.clone(),
+            None => Vec3{x: 0.0, y: 0.0, z: 0.0},
+        };
+        if accel.x > min_accel {
+            new_accel.x = accel.x;
+        }
+        if accel.y > min_accel {
+            new_accel.y = accel.y;
+        }
+        if accel.z > min_accel {
+            new_accel.z = accel.z;
+        }
+
+        if accel.x > min_accel || accel.y > min_accel || accel.z > min_accel{
+            println!("new_accel: {:?}", new_accel);
+            accels.push_back(new_accel);
+            if accels.len() >= TOTAL{
+                accels.pop_front();
+            }
+        }
+        *dj.lock().unwrap() = movement::extract_jerk(&accels);
+    }
+}
+
 fn main() {
     let (display, mut events_loop) = render::init();
 
@@ -138,6 +181,8 @@ fn main() {
     let (sender_jerk, recv) = mpsc::channel();
 
     let average_jerk = Arc::new( Mutex::new(0.0) );
+    
+    let dj = Arc::new( Mutex::new(Vec3{x:0.0, y:0.0, z:0.0}) );
 
     std::thread::spawn(move ||{
         match port {
@@ -155,33 +200,20 @@ fn main() {
     
     // read from the socket
     let mut buf = [0; 100];
-    let mut accels: VecDeque<Vec3> = VecDeque::with_capacity(TOTAL);
 
     const J_BUFF_LEN: usize = 100;
     let mut jerks = Buffer::new(J_BUFF_LEN);
 
-    const START_SIZE: usize = 100;
-    const MIN_BUFFER: f32 = 2.0;
-    let mut start_total = Vec3{x: 0.0, y: 0.0, z: 0.0};
-    for i in 0..START_SIZE {
-        let accel = movement::read(&mut buf, &mut socket);
-        start_total += accel;
-    }
-    start_total.scale(1.0 / START_SIZE as f32);
-    let min_accel = (start_total.x + start_total.y + start_total.z) / 3.0 + MIN_BUFFER;
+    let min_accel = pre_balance(&mut buf, &mut socket);
+
+    let dj2 = dj.clone();
+    std::thread::spawn(move ||{
+        gather_accels(socket, dj2, min_accel);
+    });
 
     loop {
-        let accel = movement::read(&mut buf, &mut socket);
 
-        // A minimum acceleration
-        if accel.x > min_accel || accel.y > min_accel || accel.z > min_accel{
-            accels.push_back(accel);
-            if accels.len() >= TOTAL{
-                accels.pop_front();
-            }
-        }
-
-        let mut dj_total = movement::extract_jerk(&accels);
+        let mut dj_total = dj.lock().unwrap().clone();
 
         dj_total = movement::clamp_jerk(&dj_total);
         
@@ -195,7 +227,7 @@ fn main() {
         target.clear_color(colour, colour, colour, 1.0);
         target.finish().unwrap();
 
-        if render::events(&mut events_loop) {
+        if render::events(&mut events_loop, &mut jerks) {
             break;
         };
         count += 1;
