@@ -235,6 +235,9 @@ fn main() {
         if dj_total != last_jerk {
             last_jerk = dj_total;
             dj_total = movement::clamp_jerk(&dj_total);
+            dj_total = Vec3{x: (dj_total.x + 1.0).log(2.0), 
+                y: (dj_total.y + 1.0).log(2.0), 
+                z: (dj_total.z + 1.0).log(2.0)};
 
             let jerk = max( dj_total.x, max(dj_total.y, dj_total.z) );
             jerks.add(jerk);
